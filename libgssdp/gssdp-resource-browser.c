@@ -728,6 +728,39 @@ resource_expire (gpointer user_data)
         return FALSE;
 }
 
+static gboolean
+check_location_reachable(GSSDPResourceBrowser *resource_browser,
+		const char *location)
+{
+	GUri *uri = NULL;
+	gchar *host = NULL;
+	gint port = 0;
+	GInetSocketAddress *addr = NULL;
+	gboolean reach = TRUE;
+
+	uri = g_uri_parse (location, G_URI_FLAGS_NONE, NULL);
+	if (uri == NULL)
+		return TRUE;
+
+	host = g_uri_get_host (uri);
+	if (host == NULL)
+		goto out;
+	port = g_uri_get_port (uri);
+	if (port == -1)
+		port = 0;
+
+	addr = g_inet_socket_address_new_from_string (host, port);
+	if (addr == NULL)
+		goto out;
+
+	reach = gssdp_client_can_reach (
+			gssdp_resource_browser_get_client (resource_browser),
+			addr);
+out:
+	g_uri_unref (uri);
+	return reach;
+}
+
 static void
 resource_available (GSSDPResourceBrowser *resource_browser,
                     SoupMessageHeaders   *headers)
@@ -753,8 +786,17 @@ resource_available (GSSDPResourceBrowser *resource_browser,
         destroyLocations = TRUE;
 
         header = soup_message_headers_get_one (headers, "Location");
-        if (header)
+        if (header) {
+		if (!check_location_reachable(resource_browser, header)) {
+			/* The device may have an interface with two addresses
+			 * which causes a resource-unavailable signal below.
+			 * This checking does not cover the condition that
+			 * the addresses are both in the same subnet.
+			 */
+			return;
+		}
                 locations = g_list_append (locations, g_strdup (header));
+	}
 
         header = soup_message_headers_get_one (headers, "AL");
         if (header) {
