@@ -733,7 +733,7 @@ check_location_reachable(GSSDPResourceBrowser *resource_browser,
 		const char *location)
 {
 	GUri *uri = NULL;
-	gchar *host = NULL;
+	const gchar *host = NULL;
 	gint port = 0;
 	GInetSocketAddress *addr = NULL;
 	gboolean reach = TRUE;
@@ -749,7 +749,7 @@ check_location_reachable(GSSDPResourceBrowser *resource_browser,
 	if (port == -1)
 		port = 0;
 
-	addr = g_inet_socket_address_new_from_string (host, port);
+	addr = (GInetSocketAddress *)g_inet_socket_address_new_from_string (host, port);
 	if (addr == NULL)
 		goto out;
 
